@@ -40,10 +40,18 @@ import java.util.Arrays;
  * Les permissions demandées :
  *      + Le stockage [WRITE_EXTERNAL_STORAGE , READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE]
  *
- * Ensuite, elle présente quatre boutons :
- *      + startStream : pour démarrer le streaming des images capturées par le service VisionService. [utilisation de mémoire partagée + AIDL]
- *      + stopStream : pour arrêter le streaming des images capturées par le service VisionService. [utilisation de mémoire partagée + AIDL]
- *      + getImage : pour récupérer l'image capturée par le service VisionService. [utilisation du stockage locale + AIDL]
+ * Ensuite, elle présente 7 boutons :
+ *
+ *  GrandAngle :
+ *      + startStream : pour démarrer le streaming des images grand-angle capturées par le service VisionService. [utilisation de mémoire partagée + AIDL]
+ *      + stopStream : pour arrêter le streaming des images grand-angle capturées par le service VisionService. [utilisation de mémoire partagée + AIDL]
+ *      + getImage : pour récupérer l'image grand-angle capturée par le service VisionService. [utilisation du stockage locale + AIDL]
+ *  ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ *  Zoom :
+ *      + startStream : pour démarrer le streaming des images zoom capturées par le service VisionService. [utilisation de mémoire partagée + AIDL]
+ *      + stopStream : pour arrêter le streaming des images zoom capturées par le service VisionService. [utilisation de mémoire partagée + AIDL]
+ *      + getImage : pour récupérer l'image zoom capturée par le service VisionService. [utilisation du stockage locale + AIDL]
+ * ---------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      + getObjet : pour récupérer l'objet exemple parcelable fourni par le service VisionService. [utilisation de mémoire partagée + stockage locale + AIDL]
  *
  */
@@ -58,15 +66,26 @@ public class MainActivity extends Activity {
     };
 
     //Streaming (Flux d'images)
-    private ImageView imageViewGetStream;
-    private TextView errorTextGetStream;
-    private IRemoteSharedMemory remoteMemoryOfStreamFrames;
+    //grand-angle
+    private ImageView imageViewGetStreamGrandAngle;
+    private TextView errorTextGetStreamGrandAngle;
+    private IRemoteSharedMemory remoteMemoryOfStreamFramesGrandAngle;
+    //zoom
+    private ImageView imageViewGetStreamZoom;
+    private TextView errorTextGetStreamZoom;
+    private IRemoteSharedMemory remoteMemoryOfStreamFramesZoom;
 
     //GetImage
-    private ImageView imageViewGetImage;
-    private TextView errorTextGetImage;
-    private ProgressBar progressBar_getImage;
-    private Bitmap bitmapGetImage;
+    //grand-angle
+    private ImageView imageViewGetImageGrandAngle;
+    private TextView errorTextGetImageGrandAngle;
+    private ProgressBar progressBar_getImageGrandAngle;
+    private Bitmap bitmapGetImageGrandAngle;
+    //zoom
+    private ImageView imageViewGetImageZoom;
+    private TextView errorTextGetImageZoom;
+    private ProgressBar progressBar_getImageZoom;
+    private Bitmap bitmapGetImageZoom;
 
     //GetObject
     private ObjectExample objectExample;
@@ -97,24 +116,47 @@ public class MainActivity extends Activity {
 
 
     /**
-     *  Receiver de notification de stream : nouvelle frame écrite sur la mémoire partagée.
+     *  Receiver de notification de stream grand-angle : nouvelle frame grand-angle écrite sur la mémoire partagée.
      *   - Lecture du byte[] et affichage de la frame
      */
-    private BroadcastReceiver receiverNewFrame = new BroadcastReceiver() {
+    private BroadcastReceiver receiverNewFrameGrandAngle = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             try {
                 //lecture
-                final byte[] frameBytes = new byte[remoteMemoryOfStreamFrames.getSize()];
-                remoteMemoryOfStreamFrames.readBytes(frameBytes, 0, 0, frameBytes.length);
+                final byte[] frameGrandAngleBytes = new byte[remoteMemoryOfStreamFramesGrandAngle.getSize()];
+                remoteMemoryOfStreamFramesGrandAngle.readBytes(frameGrandAngleBytes, 0, 0, frameGrandAngleBytes.length);
 
                 //affichage
-                Bitmap bitmapFrameStream = BitmapFactory.decodeByteArray(frameBytes, 0, frameBytes.length);
-                imageViewGetStream.setImageBitmap(bitmapFrameStream);
+                Bitmap bitmapFrameGrandAngleStream = BitmapFactory.decodeByteArray(frameGrandAngleBytes, 0, frameGrandAngleBytes.length);
+                imageViewGetStreamGrandAngle.setImageBitmap(bitmapFrameGrandAngleStream);
             }
             catch (Exception e) {
-                Log.e(TAG, "Erreur lors de la lecture depuis la mémoire partagée : "+e);
-                errorTextGetStream.setText("Une erreur est survenue !");
+                Log.e(TAG, "Erreur lors de la lecture depuis la mémoire partagée ("+remoteMemoryOfStreamFramesGrandAngle.getRegionName()+"): "+e);
+                errorTextGetStreamGrandAngle.setText("Une erreur est survenue !");
+            }
+        }
+    };
+
+    /**
+     *  Receiver de notification de stream zoom : nouvelle frame zoom écrite sur la mémoire partagée.
+     *   - Lecture du byte[] et affichage de la frame
+     */
+    private BroadcastReceiver receiverNewFrameZoom = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            try {
+                //lecture
+                final byte[] frameZoomBytes = new byte[remoteMemoryOfStreamFramesZoom.getSize()];
+                remoteMemoryOfStreamFramesZoom.readBytes(frameZoomBytes, 0, 0, frameZoomBytes.length);
+
+                //affichage
+                Bitmap bitmapFrameZoomStream = BitmapFactory.decodeByteArray(frameZoomBytes, 0, frameZoomBytes.length);
+                imageViewGetStreamZoom.setImageBitmap(bitmapFrameZoomStream);
+            }
+            catch (Exception e) {
+                Log.e(TAG, "Erreur lors de la lecture depuis la mémoire partagée ("+remoteMemoryOfStreamFramesZoom.getRegionName()+"): "+e);
+                errorTextGetStreamZoom.setText("Une erreur est survenue !");
             }
         }
     };
@@ -146,14 +188,19 @@ public class MainActivity extends Activity {
          */
         arrayInteger = (TextView) findViewById(R.id.arrayInteger);
         arrayString = (TextView) findViewById(R.id.arrayString);
-        imageViewGetImage = (ImageView) findViewById(R.id.imageViewGetImage);
+        imageViewGetImageGrandAngle = (ImageView) findViewById(R.id.imageViewGetImageGrandAngle);
+        imageViewGetImageZoom = (ImageView) findViewById(R.id.imageViewGetImageZoom);
         imageViewGetObjet_sharedMemory = (ImageView) findViewById(R.id.imageViewGetObjet_sharedMemory);
         imageViewGetObjet_storage = (ImageView) findViewById(R.id.imageViewGetObjet_storage);
-        imageViewGetStream = (ImageView) findViewById(R.id.imageViewGetStream);
-        errorTextGetImage = (TextView) findViewById(R.id.errorTextGetImage);
+        imageViewGetStreamGrandAngle = (ImageView) findViewById(R.id.imageViewGetStreamGrandAngle);
+        imageViewGetStreamZoom = (ImageView) findViewById(R.id.imageViewGetStreamZoom);
+        errorTextGetImageGrandAngle = (TextView) findViewById(R.id.errorTextGetImageGrandAngle);
+        errorTextGetImageZoom = (TextView) findViewById(R.id.errorTextGetImageZoom);
         errorTextGetObjet = (TextView) findViewById(R.id.errorTextGetObjet);
-        errorTextGetStream = (TextView) findViewById(R.id.errorTextGetStream);
-        progressBar_getImage = (ProgressBar) findViewById(R.id.progressBar_getImage);
+        errorTextGetStreamGrandAngle = (TextView) findViewById(R.id.errorTextGetStreamGrandAngle);
+        errorTextGetStreamZoom = (TextView) findViewById(R.id.errorTextGetStreamZoom);
+        progressBar_getImageGrandAngle = (ProgressBar) findViewById(R.id.progressBar_getImageGrandAngle);
+        progressBar_getImageZoom = (ProgressBar) findViewById(R.id.progressBar_getImageZoom);
         progressBar_getObjet = (ProgressBar) findViewById(R.id.progressBar_getObjet);
 
         /*
@@ -170,8 +217,12 @@ public class MainActivity extends Activity {
         new Thread(new Runnable() {
             public void run(){
                 String visionServiceAppId = "com.bfr.main.visionservice";
-                String regionName_stream_frames = getString(R.string.name_region_shared_memory_stream_frames);
-                remoteMemoryOfStreamFrames = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_stream_frames);
+
+                String regionName_stream_frames_grandAngle = getString(R.string.name_region_shared_memory_stream_frames_grand_angle);
+                remoteMemoryOfStreamFramesGrandAngle = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_stream_frames_grandAngle);
+
+                String regionName_stream_frames_zoom = getString(R.string.name_region_shared_memory_stream_frames_zoom);
+                remoteMemoryOfStreamFramesZoom = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_stream_frames_zoom);
 
                 String regionName_cv_resulting_frame = getString(R.string.name_region_shared_memory_cv_resulting_frame);
                 remoteMemoryOfCvResultingFrame = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_cv_resulting_frame);
@@ -190,120 +241,203 @@ public class MainActivity extends Activity {
             if (mConnectionVisionService != null) {
                 unbindService(mConnectionVisionService);
             }
-            unregisterReceiver(receiverNewFrame);
+            unregisterReceiver(receiverNewFrameGrandAngle);
+            unregisterReceiver(receiverNewFrameZoom);
         }
         catch (Exception ignored){}
     }
 
     /**
-     * La fonction BtnStartStream() est executée suite au clic sur le bouton 'startStream'.
-     * Elle fait appel à la méthode [startFrameStream()] du service externe pour que le service lance
-     * l'écriture des byte[] des frames sur la mémoire partagée.
-     * Elle permet aussi de s'enregistrer au broadcast qui notifie la présence d'une nouvelle frame
+     * La fonction BtnStartStreamGrandAngle() est executée suite au clic sur le bouton 'startStream' de la rubrique Grand Angle.
+     * Elle fait appel à la méthode [startFrameStream("grand-angle")] du service externe pour que le service lance
+     * l'écriture des byte[] des frames grand-angle sur la mémoire partagée.
+     * Elle permet aussi de s'enregistrer au broadcast qui notifie la présence d'une nouvelle frame grand-angle
      */
-    public void BtnStartStream(final View view) {
+    public void BtnStartStreamGrandAngle(final View view) {
 
         /*
          * initialisations
          */
-        imageViewGetStream.setImageBitmap(null);
-        errorTextGetStream.setText("");
+        imageViewGetStreamGrandAngle.setImageBitmap(null);
+        errorTextGetStreamGrandAngle.setText("");
 
         /*
-         * Enregistrement au broadcast qui notifie la présence d'une nouvelle frame
+         * Enregistrement au broadcast qui notifie la présence d'une nouvelle frame grand-angle
          */
-        registerReceiver(receiverNewFrame, new IntentFilter("NEW_FRAME_OPENCV_IS_WRITTEN"));
+        registerReceiver(receiverNewFrameGrandAngle, new IntentFilter("NEW_FRAME_OPENCV_IS_WRITTEN_GRAND_ANGLE"));
 
         /*
-         * Appel de la méthode du service externe [startFrameStream()] pour que le service lance
-         * l'écriture des byte[] des frames sur la mémoire partagée.
+         * Appel de la méthode du service externe [startFrameStream("grand-angle")] pour que le service lance
+         * l'écriture des byte[] des frames grand-angle sur la mémoire partagée.
          */
         if (mVisionService != null){
             try {
-                mVisionService.startFrameStream();
+                mVisionService.startFrameStream("grand-angle");
             } catch (RemoteException e) {
-                Log.e(TAG,"Erreur pendant l'appel de la fonction startFrameStream() du service Vision : "+e);
-                errorTextGetStream.setText("Une erreur est survenue !");
+                Log.e(TAG,"Erreur pendant l'appel de la fonction startFrameStream(\"grand-angle\") du service Vision : "+e);
+                errorTextGetStreamGrandAngle.setText("Une erreur est survenue !");
             }
         }
         else {
             Log.e(TAG,"mVisionService is null");
-            errorTextGetStream.setText("non connecté au service Vision");
+            errorTextGetStreamGrandAngle.setText("non connecté au service Vision");
         }
     }
 
+
     /**
-     * La fonction BtnStopStream() est executée suite au clic sur le bouton 'stopStream'.
-     * Elle fait appel à la méthode [stopFrameStream()] du service externe pour que le service arrête
-     * l'écriture des byte[] des frames sur la mémoire partagée.
-     * Elle permet aussi de se désinscrire du broadcast qui notifie la présence d'une nouvelle frame
+     * La fonction BtnStartStreamZoom() est executée suite au clic sur le bouton 'startStream' de la rubrique Zoom.
+     * Elle fait appel à la méthode [startFrameStream("zoom")] du service externe pour que le service lance
+     * l'écriture des byte[] des frames zoom sur la mémoire partagée.
+     * Elle permet aussi de s'enregistrer au broadcast qui notifie la présence d'une nouvelle frame zoom
      */
-    public void BtnStopStream(View view) {
+    public void BtnStartStreamZoom(final View view) {
+
+        /*
+         * initialisations
+         */
+        imageViewGetStreamZoom.setImageBitmap(null);
+        errorTextGetStreamZoom.setText("");
+
+        /*
+         * Enregistrement au broadcast qui notifie la présence d'une nouvelle frame zoom
+         */
+        registerReceiver(receiverNewFrameZoom, new IntentFilter("NEW_FRAME_OPENCV_IS_WRITTEN_ZOOM"));
+
+        /*
+         * Appel de la méthode du service externe [startFrameStream("zoom")] pour que le service lance
+         * l'écriture des byte[] des frames zoom sur la mémoire partagée.
+         */
+        if (mVisionService != null){
+            try {
+                mVisionService.startFrameStream("zoom");
+            } catch (RemoteException e) {
+                Log.e(TAG,"Erreur pendant l'appel de la fonction startFrameStream(\"zoom\") du service Vision : "+e);
+                errorTextGetStreamZoom.setText("Une erreur est survenue !");
+            }
+        }
+        else {
+            Log.e(TAG,"mVisionService is null");
+            errorTextGetStreamZoom.setText("non connecté au service Vision");
+        }
+    }
+
+
+
+    /**
+     * La fonction BtnStopStreamGrandAngle() est executée suite au clic sur le bouton 'stopStream' de la rubrique Grand Angle.
+     * Elle fait appel à la méthode [stopFrameStream("grand-angle")] du service externe pour que le service arrête
+     * l'écriture des byte[] des frames grand-angle sur la mémoire partagée.
+     * Elle permet aussi de se désinscrire du broadcast qui notifie la présence d'une nouvelle frame grand-angle
+     */
+    public void BtnStopStreamGrandAngle(View view) {
 
         /*
          * Désinscription du broadcastReceiver
          */
         try{
-            unregisterReceiver(receiverNewFrame);
+            unregisterReceiver(receiverNewFrameGrandAngle);
         }
         catch (Exception ignored){}
 
         /*
          * initialisations
          */
-        imageViewGetStream.setImageBitmap(null);
-        errorTextGetStream.setText("");
+        imageViewGetStreamGrandAngle.setImageBitmap(null);
+        errorTextGetStreamGrandAngle.setText("");
 
         /*
-         * Appel de la méthode du service externe [stopFrameStream()] pour que le service arrête
-         * l'écriture des byte[] des frames sur la mémoire partagée.
+         * Appel de la méthode du service externe [stopFrameStream("grand-angle")] pour que le service arrête
+         * l'écriture des byte[] des frames grand-angle sur la mémoire partagée.
          */
         if (mVisionService != null){
             try {
-                mVisionService.stopFrameStream();
+                mVisionService.stopFrameStream("grand-angle");
             } catch (RemoteException e) {
-                Log.e(TAG,"Erreur pendant l'appel de la fonction stopFrameStream() du service Vision : "+e);
-                errorTextGetStream.setText("Une erreur est survenue !");
+                Log.e(TAG,"Erreur pendant l'appel de la fonction stopFrameStream(\"grand-angle\") du service Vision : "+e);
+                errorTextGetStreamGrandAngle.setText("Une erreur est survenue !");
             }
         }
         else {
             Log.e(TAG,"mVisionService is null");
-            errorTextGetStream.setText("non connecté au service Vision");
+            errorTextGetStreamGrandAngle.setText("non connecté au service Vision");
         }
     }
 
+
     /**
-     * La fonction BtnGetImage() est executée suite au clic sur le bouton 'getImage'.
-     * Elle fait appel à la méthode [getImageByteFilePath()] du service externe pour récupérer
-     * le chemin vers l'image capturée et ensuite l'afficher.
-     * NB: le traitement est exécuté sous un Thread pour éviter les ANR.
-     *
+     * La fonction BtnStopStreamZoom() est executée suite au clic sur le bouton 'stopStream' de la rubrique Zoom.
+     * Elle fait appel à la méthode [stopFrameStream("zoom")] du service externe pour que le service arrête
+     * l'écriture des byte[] des frames zoom sur la mémoire partagée.
+     * Elle permet aussi de se désinscrire du broadcast qui notifie la présence d'une nouvelle frame zoom
      */
-    public void BtnGetImage(final View view) {
+    public void BtnStopStreamZoom(View view) {
+
+        /*
+         * Désinscription du broadcastReceiver
+         */
+        try{
+            unregisterReceiver(receiverNewFrameZoom);
+        }
+        catch (Exception ignored){}
 
         /*
          * initialisations
          */
-        imageViewGetImage.setImageBitmap(null);
-        errorTextGetImage.setText("");
-        bitmapGetImage = null;
+        imageViewGetStreamZoom.setImageBitmap(null);
+        errorTextGetStreamZoom.setText("");
 
         /*
-         * Appel de la méthode du service externe [getImageByteFilePath()] pour récupérer
-         * le chemin vers l'image capturée et ensuite l'afficher.
+         * Appel de la méthode du service externe [stopFrameStream("zoom")] pour que le service arrête
+         * l'écriture des byte[] des frames zoom sur la mémoire partagée.
+         */
+        if (mVisionService != null){
+            try {
+                mVisionService.stopFrameStream("zoom");
+            } catch (RemoteException e) {
+                Log.e(TAG,"Erreur pendant l'appel de la fonction stopFrameStream(\"zoom\") du service Vision : "+e);
+                errorTextGetStreamZoom.setText("Une erreur est survenue !");
+            }
+        }
+        else {
+            Log.e(TAG,"mVisionService is null");
+            errorTextGetStreamZoom.setText("non connecté au service Vision");
+        }
+    }
+
+
+    /**
+     * La fonction BtnGetImageGrandAngle() est executée suite au clic sur le bouton 'getImage' de la rubrique Grand Angle.
+     * Elle fait appel à la méthode [getImageByteFilePath("grand-angle")] du service externe pour récupérer
+     * le chemin vers l'image grand-angle capturée et ensuite l'afficher.
+     * NB: le traitement est exécuté sous un Thread pour éviter les ANR.
+     *
+     */
+    public void BtnGetImageGrandAngle(final View view) {
+
+        /*
+         * initialisations
+         */
+        imageViewGetImageGrandAngle.setImageBitmap(null);
+        errorTextGetImageGrandAngle.setText("");
+        bitmapGetImageGrandAngle = null;
+
+        /*
+         * Appel de la méthode du service externe [getImageByteFilePath("grand-angle")] pour récupérer
+         * le chemin vers l'image grand-angle capturée et ensuite l'afficher.
          */
         if (mVisionService != null){
 
             //bouton invisible + spinner visible
             view.setVisibility(View.GONE);
-            progressBar_getImage.setVisibility(View.VISIBLE);
+            progressBar_getImageGrandAngle.setVisibility(View.VISIBLE);
 
             new Thread(new Runnable() {
                 public void run(){
                     try {
 
                         //récupération du chemin
-                        final String imageByteFilePath = mVisionService.getImageByteFilePath();
+                        final String imageByteFilePath = mVisionService.getImageByteFilePath("grand-angle");
 
                         //récupération du byte[]
                         if(!imageByteFilePath.equals("ERROR")){
@@ -312,7 +446,7 @@ public class MainActivity extends Activity {
                                 int length = (int) f.length();
                                 byte[] imageByte = new byte[length];
                                 f.readFully(imageByte);
-                                bitmapGetImage = BitmapFactory.decodeByteArray(imageByte, 0, imageByte.length);
+                                bitmapGetImageGrandAngle = BitmapFactory.decodeByteArray(imageByte, 0, imageByte.length);
                             }
                             finally {
                                 f.close();
@@ -323,26 +457,26 @@ public class MainActivity extends Activity {
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                if(bitmapGetImage != null) imageViewGetImage.setImageBitmap(bitmapGetImage);
+                                if(bitmapGetImageGrandAngle != null) imageViewGetImageGrandAngle.setImageBitmap(bitmapGetImageGrandAngle);
                                 else {
-                                    errorTextGetImage.setText("Image introuvable !");
-                                    Log.e(TAG,"Image introuvable sur le stockage locale ["+imageByteFilePath+"]");
+                                    errorTextGetImageGrandAngle.setText("Image introuvable !");
+                                    Log.e(TAG,"Image grand-angle introuvable sur le stockage locale ["+imageByteFilePath+"]");
                                 }
                                 //bouton visible + spinner invisible
                                 view.setVisibility(View.VISIBLE);
-                                progressBar_getImage.setVisibility(View.GONE);
+                                progressBar_getImageGrandAngle.setVisibility(View.GONE);
                             }
                         });
 
                     } catch (Exception e) {
-                        Log.e(TAG,"Erreur pendant la récupération de l'image capturée : " + e);
+                        Log.e(TAG,"Erreur pendant la récupération de l'image grand-angle capturée : " + e);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                errorTextGetImage.setText("Une erreur est survenue !");
+                                errorTextGetImageGrandAngle.setText("Une erreur est survenue !");
                                 //bouton visible + spinner invisible
                                 view.setVisibility(View.VISIBLE);
-                                progressBar_getImage.setVisibility(View.GONE);
+                                progressBar_getImageGrandAngle.setVisibility(View.GONE);
                             }
                         });
                     }
@@ -351,7 +485,91 @@ public class MainActivity extends Activity {
         }
         else {
             Log.e(TAG,"mVisionService is null");
-            errorTextGetImage.setText("non connecté au service Vision");
+            errorTextGetImageGrandAngle.setText("non connecté au service Vision");
+        }
+    }
+
+
+    /**
+     * La fonction BtnGetImageZoom() est executée suite au clic sur le bouton 'getImage' de la rubrique Zoom.
+     * Elle fait appel à la méthode [getImageByteFilePath("zoom")] du service externe pour récupérer
+     * le chemin vers l'image zoom capturée et ensuite l'afficher.
+     * NB: le traitement est exécuté sous un Thread pour éviter les ANR.
+     *
+     */
+    public void BtnGetImageZoom(final View view) {
+
+        /*
+         * initialisations
+         */
+        imageViewGetImageZoom.setImageBitmap(null);
+        errorTextGetImageZoom.setText("");
+        bitmapGetImageZoom = null;
+
+        /*
+         * Appel de la méthode du service externe [getImageByteFilePath("zoom")] pour récupérer
+         * le chemin vers l'image zoom capturée et ensuite l'afficher.
+         */
+        if (mVisionService != null){
+
+            //bouton invisible + spinner visible
+            view.setVisibility(View.GONE);
+            progressBar_getImageZoom.setVisibility(View.VISIBLE);
+
+            new Thread(new Runnable() {
+                public void run(){
+                    try {
+
+                        //récupération du chemin
+                        final String imageByteFilePath = mVisionService.getImageByteFilePath("zoom");
+
+                        //récupération du byte[]
+                        if(!imageByteFilePath.equals("ERROR")){
+                            RandomAccessFile f = new RandomAccessFile(imageByteFilePath, "r");
+                            try {
+                                int length = (int) f.length();
+                                byte[] imageByte = new byte[length];
+                                f.readFully(imageByte);
+                                bitmapGetImageZoom = BitmapFactory.decodeByteArray(imageByte, 0, imageByte.length);
+                            }
+                            finally {
+                                f.close();
+                            }
+                        }
+
+                        //affichage
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if(bitmapGetImageZoom != null) imageViewGetImageZoom.setImageBitmap(bitmapGetImageZoom);
+                                else {
+                                    errorTextGetImageZoom.setText("Image introuvable !");
+                                    Log.e(TAG,"Image zoom introuvable sur le stockage locale ["+imageByteFilePath+"]");
+                                }
+                                //bouton visible + spinner invisible
+                                view.setVisibility(View.VISIBLE);
+                                progressBar_getImageZoom.setVisibility(View.GONE);
+                            }
+                        });
+
+                    } catch (Exception e) {
+                        Log.e(TAG,"Erreur pendant la récupération de l'image zoom capturée : " + e);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                errorTextGetImageZoom.setText("Une erreur est survenue !");
+                                //bouton visible + spinner invisible
+                                view.setVisibility(View.VISIBLE);
+                                progressBar_getImageZoom.setVisibility(View.GONE);
+                            }
+                        });
+                    }
+                }
+            }).start();
+        }
+        else {
+            Log.e(TAG,"mVisionService is null");
+            errorTextGetImageZoom.setText("non connecté au service Vision");
         }
     }
 

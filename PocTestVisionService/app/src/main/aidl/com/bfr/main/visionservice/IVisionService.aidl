@@ -5,8 +5,8 @@ package com.bfr.main.visionservice;
 import com.bfr.main.visionservice.models.ObjectExample;
 
 interface IVisionService {
-    void startFrameStream();
-    void stopFrameStream();
+    void startFrameStream(String camera);
+    void stopFrameStream(String camera);
     ObjectExample getObjectExample();
-    String getImageByteFilePath();
+    String getImageByteFilePath(String camera);
 }

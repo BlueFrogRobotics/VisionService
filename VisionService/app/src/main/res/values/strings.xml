@@ -3,14 +3,18 @@
     <string name="app_name">VisionService</string>
 
     <string name="path_to_storage">/storage/emulated/0/</string> <!--  Chemin vers le dossier de stockage locale  -->
-    <string name="image_bytes_directory">ImageBytesFile</string> <!--  Nom du dossier où stocker les fichiers de byte[] des images  -->
-    <string name="captured_image_bytes_file">CapturedImageBytesFile</string> <!--  Nom du fichier contenant le byte[] de l'image capturée  -->
+    <string name="image_bytes_directory">ImageBytesFiles</string> <!--  Nom du dossier où stocker les fichiers de byte[] des images  -->
+    <string name="captured_image_grand_angle_bytes_file">GrandAngleCapturedImageBytesFile</string> <!--  Nom du fichier contenant le byte[] de l'image grand angle capturée  -->
+    <string name="captured_image_zoom_bytes_file">ZoomCapturedImageBytesFile</string> <!--  Nom du fichier contenant le byte[] de l'image zoom capturée  -->
     <string name="cv_result_image_bytes_file">CvResultImageBytesFile</string> <!--  Nom du fichier contenant le byte[] de l'image résultante du traitement par CV  -->
 
-    <string name="name_region_shared_memory_stream_frames">Stream-Frames</string> <!--  Nom de la région de mémoire partagée allouée pour le streaming  -->
-    <string name="size_MB_region_shared_memory_stream_frames">2</string> <!--  Taille en MB de la région de mémoire partagée allouée pour le streaming  -->
+    <string name="name_region_shared_memory_stream_frames_grand_angle">Stream-Frames-GrandAngle</string> <!--  Nom de la région de mémoire partagée allouée pour le streaming GrandAngle -->
+    <string name="size_MB_region_shared_memory_stream_frames_grand_angle">2</string> <!--  Taille en MB de la région de mémoire partagée allouée pour le streaming GrandAngle -->
 
-    <string name="name_region_shared_memory_cv_resulting_frame">CV-Resulting-frame</string> <!--  Nom de la région de mémoire partagée allouée pour le byte[] de l'image résultante du traitement par CV  -->
+    <string name="name_region_shared_memory_stream_frames_zoom">Stream-Frames-Zoom</string> <!--  Nom de la région de mémoire partagée allouée pour le streaming Zoom -->
+    <string name="size_MB_region_shared_memory_stream_frames_zoom">2</string> <!--  Taille en MB de la région de mémoire partagée allouée pour le streaming Zoom -->
+
+    <string name="name_region_shared_memory_cv_resulting_frame">CV-Resulting-Frame</string> <!--  Nom de la région de mémoire partagée allouée pour le byte[] de l'image résultante du traitement par CV  -->
     <string name="size_MB_region_shared_memory_cv_resulting_frame">2</string> <!--  Taille en MB de la région de mémoire partagée allouée pour le byte[] de l'image résultante du traitement par CV  -->
 
 

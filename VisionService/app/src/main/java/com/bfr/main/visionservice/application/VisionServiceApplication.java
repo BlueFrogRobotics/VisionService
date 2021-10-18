@@ -17,9 +17,10 @@ import java.util.List;
 /**
  * La classe VisionServiceApplication est la classe Application, utilisée pour la sauvegarde des variables globales.
  *
- * Dès sa création, deux régions de mémoire partagée sont alloués :
- *  --> une pour le streaming des images.
- *  --> l'autre pour l'image résultante du traitment par CV.
+ * Dès sa création, trois régions de mémoire partagée sont alloués :
+ *  --> une pour le streaming des images de camera Grand-Angle.
+ *  --> une pour le streaming des images de camera Zoom.
+ *  --> une pour l'image résultante du traitment par CV.
  *
  * Elle fournie aussi les fonctions :
  *  - writeCvResultingFrameInSharedMemory() : pour écrire le byte[] de l'image résultante du traitment par CV sur la mémoire partagée.
@@ -32,23 +33,35 @@ public class VisionServiceApplication extends Application {
 
     private List<IDBObserver> observers = new ArrayList<>();
 
-    private ISharedMemory sharedMemoryOfStreamFrames; // l'objet de mémoire partagée, utilisé pour écrire les byte[] des frames pour le partage du flux de frames avec les autres applications
+    private ISharedMemory sharedMemoryOfStreamFramesGrandAngle; // l'objet de mémoire partagée [région Stream-Frames-GrandAngle], utilisé pour écrire les byte[] des frames Grand-Angle
+    private ISharedMemory sharedMemoryOfStreamFramesZoom; // l'objet de mémoire partagée [région Stream-Frames-Zoom], utilisé pour écrire les byte[] des frames Zoom
     private ISharedMemory sharedMemoryOfCvResultingFrame; // l'objet de mémoire partagée, utilisé pour écrire le byte[] de l'image résultante du traitement par CV
 
-    private boolean isOpenCVFrameCaptured; // Indique si l'image est prise ou pas encore
-    private Mat openCVFrame; // L'image capturée sous format de Mat
+    private boolean isFrameGrandAngleCaptured; // Indique si l'image Grand-Angle est prise ou pas encore
+    private Mat frameGrandAngle; // L'image Grand-Angle capturée sous format de Mat
+
+    private boolean isFrameZoomCaptured; // Indique si l'image Zoom est prise ou pas encore
+    private Mat frameZoom; // L'image Zoom capturée sous format de Mat
 
 
     /**
      * Getters and Setters
      */
 
-    public ISharedMemory getSharedMemoryOfStreamFrames() {
-        return sharedMemoryOfStreamFrames;
+    public ISharedMemory getSharedMemoryOfStreamFramesGrandAngle() {
+        return sharedMemoryOfStreamFramesGrandAngle;
     }
 
-    public void setSharedMemoryOfStreamFrames(ISharedMemory sharedMemoryOfStreamFrames) {
-        this.sharedMemoryOfStreamFrames = sharedMemoryOfStreamFrames;
+    public void setSharedMemoryOfStreamFramesGrandAngle(ISharedMemory sharedMemoryOfStreamFramesGrandAngle) {
+        this.sharedMemoryOfStreamFramesGrandAngle = sharedMemoryOfStreamFramesGrandAngle;
+    }
+
+    public ISharedMemory getSharedMemoryOfStreamFramesZoom() {
+        return sharedMemoryOfStreamFramesZoom;
+    }
+
+    public void setSharedMemoryOfStreamFramesZoom(ISharedMemory sharedMemoryOfStreamFramesZoom) {
+        this.sharedMemoryOfStreamFramesZoom = sharedMemoryOfStreamFramesZoom;
     }
 
     public ISharedMemory getSharedMemoryOfCvResultingFrame() {
@@ -59,42 +72,73 @@ public class VisionServiceApplication extends Application {
         this.sharedMemoryOfCvResultingFrame = sharedMemoryOfCvResultingFrame;
     }
 
-    public boolean isOpenCVFrameCaptured() {
-        return isOpenCVFrameCaptured;
+    public boolean isFrameGrandAngleCaptured() {
+        return isFrameGrandAngleCaptured;
     }
 
-    public void setOpenCVFrameCaptured(boolean openCVFrameCaptured) {
-        isOpenCVFrameCaptured = openCVFrameCaptured;
+    public void setFrameGrandAngleCaptured(boolean frameGrandAngleCaptured) {
+        isFrameGrandAngleCaptured = frameGrandAngleCaptured;
     }
 
-    public Mat getOpenCVFrame() {
-        return openCVFrame;
+    public Mat getFrameGrandAngle() {
+        return frameGrandAngle;
     }
 
-    public void setOpenCVFrame(Mat openCVFrame) {
-        this.openCVFrame = openCVFrame;
+    public void setFrameGrandAngle(Mat frameGrandAngle) {
+        this.frameGrandAngle = frameGrandAngle;
     }
+
+    public boolean isFrameZoomCaptured() {
+        return isFrameZoomCaptured;
+    }
+
+    public void setFrameZoomCaptured(boolean frameZoomCaptured) {
+        isFrameZoomCaptured = frameZoomCaptured;
+    }
+
+    public Mat getFrameZoom() {
+        return frameZoom;
+    }
+
+    public void setFrameZoom(Mat frameZoom) {
+        this.frameZoom = frameZoom;
+    }
+
 
 
     /**
-     * Initialisations + Allocation de région de mémoire partagée
+     * Initialisations + Allocation de régions de mémoire partagée
      */
     @Override
     public void onCreate() {
         super.onCreate();
 
-        isOpenCVFrameCaptured = false;
+        isFrameGrandAngleCaptured = false;
+        isFrameZoomCaptured = false;
 
         /*
-         * Allocation de [size_MB_region_shared_memory_stream_frames]MB de mémoire partagée pour le streaming
+         * Allocation de [size_MB_region_shared_memory_stream_frames_grand_angle]MB de mémoire partagée pour le streaming GrandAngle
          */
-        int sizeInBytes_stream_frames = Integer.parseInt(getString(R.string.size_MB_region_shared_memory_stream_frames))*(1024*1024);
-        String regionName_stream_frames = getString(R.string.name_region_shared_memory_stream_frames);
+        int sizeInBytes_stream_frames_grandAngle = Integer.parseInt(getString(R.string.size_MB_region_shared_memory_stream_frames_grand_angle))*(1024*1024);
+        String regionName_stream_frames_grandAngle = getString(R.string.name_region_shared_memory_stream_frames_grand_angle);
         try {
-            this.sharedMemoryOfStreamFrames = SharedMemoryProducer.getInstance().allocate(regionName_stream_frames, sizeInBytes_stream_frames);
+            this.sharedMemoryOfStreamFramesGrandAngle = SharedMemoryProducer.getInstance().allocate(regionName_stream_frames_grandAngle, sizeInBytes_stream_frames_grandAngle);
         } catch (Exception e) {
-            Log.e(TAG, "Erreur lors de l'allocation de mémoire partagée (" + regionName_stream_frames + " , "+sizeInBytes_stream_frames + ") : " + e);
+            Log.e(TAG, "Erreur lors de l'allocation de mémoire partagée (" + regionName_stream_frames_grandAngle + " , "+sizeInBytes_stream_frames_grandAngle + ") : " + e);
         }
+
+
+        /*
+         * Allocation de [size_MB_region_shared_memory_stream_frames_zoom]MB de mémoire partagée pour le streaming Zoom
+         */
+        int sizeInBytes_stream_frames_zoom = Integer.parseInt(getString(R.string.size_MB_region_shared_memory_stream_frames_zoom))*(1024*1024);
+        String regionName_stream_frames_zoom = getString(R.string.name_region_shared_memory_stream_frames_zoom);
+        try {
+            this.sharedMemoryOfStreamFramesZoom = SharedMemoryProducer.getInstance().allocate(regionName_stream_frames_zoom, sizeInBytes_stream_frames_zoom);
+        } catch (Exception e) {
+            Log.e(TAG, "Erreur lors de l'allocation de mémoire partagée (" + regionName_stream_frames_zoom + " , "+sizeInBytes_stream_frames_zoom + ") : " + e);
+        }
+
 
         /*
          * Allocation de [size_MB_region_shared_memory_cv_resulting_frame]MB de mémoire partagée pour l'image résultante du traitment par CV

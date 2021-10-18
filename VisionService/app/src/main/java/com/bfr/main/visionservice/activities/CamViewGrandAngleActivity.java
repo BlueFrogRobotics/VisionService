@@ -23,19 +23,18 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * La classe CamViewActivity représente l'activité de camera fournie par openCV via CameraActivity.
- * Nous utilisons cette activité pour récupérer la frame openCV.
+ * La classe CamViewGrandAngleActivity représente l'activité de camera "grand-angle" fournie par openCV via CameraActivity.
+ * Nous utilisons cette activité pour récupérer la frame openCV "grand-angle"
  * Cette activité se lance de façon transparente sur les autres applications
  * (n'est pas visible + absence de focus pour ne pas bloquer les touches sur les autres applications)
  */
-public class CamViewActivity extends CameraActivity implements CameraBridgeViewBase.CvCameraViewListener2, IDBObserver {
+public class CamViewGrandAngleActivity extends CameraActivity implements CameraBridgeViewBase.CvCameraViewListener2, IDBObserver {
 
-    private static final String TAG = "SERVICE_VISION_CamViewActivity";
+    private static final String TAG = "SERVICE_VISION_CamViewGrandAngleActivity";
 
-    private CameraBridgeViewBase mOpenCvCameraView;
+    private CameraBridgeViewBase mOpenCvCameraViewGrandAngle;
     private VisionServiceApplication application;
-    private int idCamera = 0; //  0: grand-angle  ,  1: Zoom
-    private boolean stream = true; // Indique s'il faut lancer le streaming de frames [Ecriture sur mémoire partagée] ou non
+    private boolean streamGrandAngle = true; // Indique s'il faut lancer le streaming de frames grand-Angle [Ecriture sur mémoire partagée] ou non
 
     /**
      * Callback d'initialisation openCV
@@ -46,9 +45,9 @@ public class CamViewActivity extends CameraActivity implements CameraBridgeViewB
             switch (status) {
                 case LoaderCallbackInterface.SUCCESS: {
                     Log.i(TAG, "OpenCV loaded successfully!");
-                    //Choix de caméra (Grand angle ou Zoom) puis activation du preview
-                    mOpenCvCameraView.setCameraIndex(idCamera);
-                    mOpenCvCameraView.enableView();
+                    //Choix de caméra Grand angle puis activation du preview
+                    mOpenCvCameraViewGrandAngle.setCameraIndex(0);
+                    mOpenCvCameraViewGrandAngle.enableView();
                 }
                 break;
                 default: {
@@ -67,13 +66,13 @@ public class CamViewActivity extends CameraActivity implements CameraBridgeViewB
         super.onCreate(savedInstanceState);
         //Désactivation du focus sur l'activité pour ne pas bloquer les touches sur les autres applications
         getWindow().addFlags( WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                        | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         );
 
         //Liaison au layout
-        setContentView(R.layout.activity_cam_view);
+        setContentView(R.layout.activity_cam_view_grand_angle);
 
         //Récupération du contexte d'Application
         application = (VisionServiceApplication) getApplicationContext();
@@ -81,15 +80,11 @@ public class CamViewActivity extends CameraActivity implements CameraBridgeViewB
         //Enregistrement de l'Observer (pour recevoir les notifications)
         application.registerObserver(this);
 
-        //Récupération de l'index de caméra à utiliser (grand-angle ou Zoom)
-        Bundle bundle = getIntent().getExtras();
-        if(bundle != null) idCamera = bundle.getInt("idCamera");
-
         // initialize implementation of CNNExtractorService
         // configure camera listener
-        mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.CameraView);
-        mOpenCvCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
-        mOpenCvCameraView.setCvCameraViewListener(this);
+        mOpenCvCameraViewGrandAngle = (CameraBridgeViewBase) findViewById(R.id.CameraViewGrandAngle);
+        mOpenCvCameraViewGrandAngle.setVisibility(CameraBridgeViewBase.VISIBLE);
+        mOpenCvCameraViewGrandAngle.setCvCameraViewListener(this);
 
     }
 
@@ -120,7 +115,7 @@ public class CamViewActivity extends CameraActivity implements CameraBridgeViewB
 
     @Override
     protected List<? extends CameraBridgeViewBase> getCameraViewList() {
-        return Collections.singletonList(mOpenCvCameraView);
+        return Collections.singletonList(mOpenCvCameraViewGrandAngle);
     }
 
     @Override
@@ -130,42 +125,42 @@ public class CamViewActivity extends CameraActivity implements CameraBridgeViewB
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
         // take a picture from the camera
-        Mat frame = inputFrame.rgba();
+        Mat frameGrandAngle = inputFrame.rgba();
 
         // dos stuff with the frame
 
-        //Enregistrer la frame sur la classe Application
-        application.setOpenCVFrame(frame);
-        application.setOpenCVFrameCaptured(true);
+        //Enregistrer la frame Grand-Angle sur la classe Application
+        application.setFrameGrandAngle(frameGrandAngle);
+        application.setFrameGrandAngleCaptured(true);
 
         /*
-         * Conversion de la frame (Mat) en BitMap puis en byte[] pour écriture sur la mémoire partagée (streaming)
-         * Ensuite, envoi d'un broadcast pour notifier la présence d'une nouvelle frame
+         * Conversion de la frame (Mat) en BitMap puis en byte[] pour écriture sur la mémoire partagée (streaming Grand-Angle)
+         * Ensuite, envoi d'un broadcast pour notifier la présence d'une nouvelle frame Grand-Angle
          */
-        if(stream){
+        if(streamGrandAngle){
             try {
                 // Mat to Bitmap
-                Bitmap frameInBitmap = Bitmap.createBitmap(frame.cols(), frame.rows(), Bitmap.Config.ARGB_8888);
-                org.opencv.android.Utils.matToBitmap(frame, frameInBitmap,true);
+                Bitmap frameGrandAngleInBitmap = Bitmap.createBitmap(frameGrandAngle.cols(), frameGrandAngle.rows(), Bitmap.Config.ARGB_8888);
+                org.opencv.android.Utils.matToBitmap(frameGrandAngle, frameGrandAngleInBitmap,true);
 
                 // Bitmap to byte[]
-                byte[] frameInBytes = Utils.getBytesFromBitmap(frameInBitmap);
+                byte[] frameGrandAngleInBytes = Utils.getBytesFromBitmap(frameGrandAngleInBitmap);
 
                 // Ecriture sur la mémoire partagée
-                application.getSharedMemoryOfStreamFrames().writeBytes(frameInBytes, 0, 0, frameInBytes.length);
-                Log.i(TAG, "Ecriture sur la mémoire partagée");
+                application.getSharedMemoryOfStreamFramesGrandAngle().writeBytes(frameGrandAngleInBytes, 0, 0, frameGrandAngleInBytes.length);
+                Log.i(TAG, "Ecriture frame Grand-Angle sur la mémoire partagée");
 
-                // Envoi du broadcast pour notifier les autres applications de la présence d'une nouvelle frame sur la mémoire partagée
-                Intent intent_new_frame = new Intent("NEW_FRAME_OPENCV_IS_WRITTEN");
-                sendBroadcast(intent_new_frame);
+                // Envoi du broadcast pour notifier les autres applications de la présence d'une nouvelle frame Grand-Angle sur la mémoire partagée
+                Intent intent_new_frame_grand_angle = new Intent("NEW_FRAME_OPENCV_IS_WRITTEN_GRAND_ANGLE");
+                sendBroadcast(intent_new_frame_grand_angle);
 
             }
             catch (Exception e){
-                Log.e(TAG, "Erreur lors de la conversion de la frame et l'écriture sur la mémoire partagée : "+e);
+                Log.e(TAG, "Erreur lors de la conversion de la frame grand-angle et l'écriture sur la mémoire partagée : "+e);
             }
         }
 
-        return frame;
+        return frameGrandAngle;
     }
 
     @Override
@@ -180,18 +175,18 @@ public class CamViewActivity extends CameraActivity implements CameraBridgeViewB
     public void update(String message) throws IOException {
         if(message != null){
 
-            // Lancer l'écriture des frames sur la mémoire partagée
-            if(message.equals("startStreamCamOpenCV")){
-                this.stream = true;
+            // Lancer l'écriture des frames Grand-Angle sur la mémoire partagée
+            if(message.equals("startStreamGrandAngle")){
+                this.streamGrandAngle = true;
             }
 
-            // Arrêter l'écriture des frames sur la mémoire partagée
-            else if(message.equals("stopStreamCamOpenCV")){
-                this.stream = false;
+            // Arrêter l'écriture des frames Grand-Angle sur la mémoire partagée
+            else if(message.equals("stopStreamGrandAngle")){
+                this.streamGrandAngle = false;
             }
 
             // Fermer l'activité
-            else if(message.equals("finishCamOpenCV")){
+            else if(message.equals("finishCamGrandAngle")){
                 finish();
             }
 

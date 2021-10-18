@@ -37,7 +37,11 @@
         android:requestLegacyExternalStorage="true">
 
         <activity
-            android:name=".activities.CamViewActivity"
+            android:name=".activities.CamViewGrandAngleActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+
+        <activity
+            android:name=".activities.CamViewZoomActivity"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
 
         <activity android:name=".activities.MainActivity">
