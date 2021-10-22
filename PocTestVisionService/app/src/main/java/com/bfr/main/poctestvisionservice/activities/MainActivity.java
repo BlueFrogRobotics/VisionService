@@ -11,16 +11,20 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.text.Spannable;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,6 +33,9 @@ import com.bfr.main.poctestvisionservice.models.ObjectExample;
 import com.bfr.main.visionservice.IVisionService;
 import com.newtronlabs.sharedmemory.IRemoteSharedMemory;
 import com.newtronlabs.sharedmemory.RemoteMemoryAdapter;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.RandomAccessFile;
 import java.util.Arrays;
@@ -53,6 +60,9 @@ import java.util.Arrays;
  *      + getImage : pour récupérer l'image zoom capturée par le service VisionService. [utilisation du stockage locale + AIDL]
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      + getObjet : pour récupérer l'objet exemple parcelable fourni par le service VisionService. [utilisation de mémoire partagée + stockage locale + AIDL]
+ * ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ *
+ *  Elle présente aussi deux rubriques qui affichent les informations des tags détectés.
  *
  */
 public class MainActivity extends Activity {
@@ -65,29 +75,31 @@ public class MainActivity extends Activity {
             Manifest.permission.READ_EXTERNAL_STORAGE,
     };
 
-    //Streaming (Flux d'images)
-    //grand-angle
+    //Streaming (Flux d'images) :
+
+        //grand-angle
     private ImageView imageViewGetStreamGrandAngle;
     private TextView errorTextGetStreamGrandAngle;
     private IRemoteSharedMemory remoteMemoryOfStreamFramesGrandAngle;
-    //zoom
+        //zoom
     private ImageView imageViewGetStreamZoom;
     private TextView errorTextGetStreamZoom;
     private IRemoteSharedMemory remoteMemoryOfStreamFramesZoom;
 
-    //GetImage
-    //grand-angle
+    //GetImage :
+
+        //grand-angle
     private ImageView imageViewGetImageGrandAngle;
     private TextView errorTextGetImageGrandAngle;
     private ProgressBar progressBar_getImageGrandAngle;
     private Bitmap bitmapGetImageGrandAngle;
-    //zoom
+        //zoom
     private ImageView imageViewGetImageZoom;
     private TextView errorTextGetImageZoom;
     private ProgressBar progressBar_getImageZoom;
     private Bitmap bitmapGetImageZoom;
 
-    //GetObject
+    //GetObject :
     private ObjectExample objectExample;
     private TextView arrayInteger;
     private TextView arrayString;
@@ -98,6 +110,15 @@ public class MainActivity extends Activity {
     private IRemoteSharedMemory remoteMemoryOfCvResultingFrame;
     private ImageView imageViewGetObjet_storage;
     private Bitmap bitmapStorageGetObjet;
+
+    //Infos Tags :
+
+        //grand-angle
+    private ScrollView scrollerGrandAngle;
+    private TextView messageViewGrandAngle;
+        //zoom
+    private ScrollView scrollerZoom;
+    private TextView messageViewZoom;
 
     /**
      *  Callback de connexion au service externe VisionService
@@ -114,6 +135,198 @@ public class MainActivity extends Activity {
         }
     };
 
+    /**
+     * Vérification des permissions puis lancement des traitements
+     */
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        if (checkSelfPermission(REQUESTED_PERMISSIONS[0], PERMISSION_REQ_ID) &&
+                checkSelfPermission(REQUESTED_PERMISSIONS[1], PERMISSION_REQ_ID)
+        ){
+            start();
+        }
+    }
+
+    /**
+     * La fonction start() permet de :
+     *   - initialiser les views
+     *   - lancer la connexion au service externe VisionService
+     *   - initialiser les objets de mémoire partagée de VisionService
+     */
+    private void start(){
+
+        /*
+         * Initialisations
+         */
+        arrayInteger = (TextView) findViewById(R.id.arrayInteger);
+        arrayString = (TextView) findViewById(R.id.arrayString);
+        imageViewGetImageGrandAngle = (ImageView) findViewById(R.id.imageViewGetImageGrandAngle);
+        imageViewGetImageZoom = (ImageView) findViewById(R.id.imageViewGetImageZoom);
+        imageViewGetObjet_sharedMemory = (ImageView) findViewById(R.id.imageViewGetObjet_sharedMemory);
+        imageViewGetObjet_storage = (ImageView) findViewById(R.id.imageViewGetObjet_storage);
+        imageViewGetStreamGrandAngle = (ImageView) findViewById(R.id.imageViewGetStreamGrandAngle);
+        imageViewGetStreamZoom = (ImageView) findViewById(R.id.imageViewGetStreamZoom);
+        errorTextGetImageGrandAngle = (TextView) findViewById(R.id.errorTextGetImageGrandAngle);
+        errorTextGetImageZoom = (TextView) findViewById(R.id.errorTextGetImageZoom);
+        errorTextGetObjet = (TextView) findViewById(R.id.errorTextGetObjet);
+        errorTextGetStreamGrandAngle = (TextView) findViewById(R.id.errorTextGetStreamGrandAngle);
+        errorTextGetStreamZoom = (TextView) findViewById(R.id.errorTextGetStreamZoom);
+        progressBar_getImageGrandAngle = (ProgressBar) findViewById(R.id.progressBar_getImageGrandAngle);
+        progressBar_getImageZoom = (ProgressBar) findViewById(R.id.progressBar_getImageZoom);
+        progressBar_getObjet = (ProgressBar) findViewById(R.id.progressBar_getObjet);
+        scrollerGrandAngle= (ScrollView) findViewById(R.id.scrollerGrandAngle);
+        messageViewGrandAngle = (TextView) findViewById(R.id.messageViewGrandAngle);
+        scrollerZoom= (ScrollView) findViewById(R.id.scrollerZoom);
+        messageViewZoom = (TextView) findViewById(R.id.messageViewZoom);
+
+        /*
+         *  Connexion au service externe VisionService
+         */
+        Intent intent = new Intent();
+        intent.setAction("services.visionService");
+        intent.setPackage("com.bfr.main.visionservice");
+        bindService(intent, mConnectionVisionService, Context.BIND_AUTO_CREATE);
+
+        /*
+         *   Récupération des objets de mémoire partagée de VisionService
+         */
+        new Thread(new Runnable() {
+            public void run(){
+                String visionServiceAppId = "com.bfr.main.visionservice";
+
+                String regionName_stream_frames_grandAngle = getString(R.string.name_region_shared_memory_stream_frames_grand_angle);
+                remoteMemoryOfStreamFramesGrandAngle = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_stream_frames_grandAngle);
+
+                String regionName_stream_frames_zoom = getString(R.string.name_region_shared_memory_stream_frames_zoom);
+                remoteMemoryOfStreamFramesZoom = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_stream_frames_zoom);
+
+                String regionName_cv_resulting_frame = getString(R.string.name_region_shared_memory_cv_resulting_frame);
+                remoteMemoryOfCvResultingFrame = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_cv_resulting_frame);
+            }
+        }).start();
+
+    }
+
+    /**
+     * Déconnexion du service externe VisionService et désinscription des broadcastReceiver
+     */
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try{
+            if (mConnectionVisionService != null) {
+                unbindService(mConnectionVisionService);
+            }
+            unregisterReceiver(receiverNewFrameGrandAngle);
+            unregisterReceiver(receiverNewFrameZoom);
+            unregisterReceiver(receiverTagDetectedGrandAngle);
+            unregisterReceiver(receiverTagDetectedZoom);
+        }
+        catch (Exception ignored){}
+    }
+
+
+    /**
+     *  les BroadcastReceivers :
+     */
+
+    /**
+     *  Receiver de notification de détection de tag (caméra grand-angle)
+     *   - Lecture du JSON et affichage
+     */
+    private BroadcastReceiver receiverTagDetectedGrandAngle = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (mVisionService != null){
+                try {
+                    //récupération du JSON sous format de string
+                    String tagsInfosString = mVisionService.getTagsInfos("grand-angle");
+
+                    //reconstruction de l'objet JSON
+                    if(tagsInfosString != null){
+                        JSONObject tagsInfosObj = new JSONObject(tagsInfosString);
+
+                        //récupération des informations de tags
+                        int numberOfTags = (int) tagsInfosObj.get("numberOfTags");
+                        JSONArray arrayTags  = (JSONArray) tagsInfosObj.get("tags");
+
+                        //affichage du nombre de tags détectés
+                        appendColoredText(messageViewGrandAngle, "\n\nNumber of detected Markers : "+numberOfTags , Color.RED);
+
+                        //affichage des valeurs lues sur chaque tag
+                        for (int k=0; k<numberOfTags; k++) {
+                            messageViewGrandAngle.append("\nRead values in marker " + k + " : " + arrayTags.getJSONObject(k).get("value").toString());
+                        }
+
+                        //scroll automatique
+                        scrollerGrandAngle.post(new Runnable() {
+                            public void run() {
+                                scrollerGrandAngle.smoothScrollTo(0, messageViewGrandAngle.getBottom());
+                            }
+                        });
+
+                        Log.i(TAG,"Objet JSON - tagsInfos (GrandAngle) : "+tagsInfosString);
+                    }
+
+                } catch (Exception e) {
+                    Log.e(TAG,"Erreur pendant l'appel de la fonction getTagsInfos(\"grand-angle\") du service Vision : "+e);
+                }
+            }
+            else {
+                Log.e(TAG,"mVisionService is null");
+            }
+        }
+    };
+
+    /**
+     *  Receiver de notification de détection de tag (caméra zoom)
+     *   - Lecture du JSON et affichage
+     */
+    private BroadcastReceiver receiverTagDetectedZoom = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (mVisionService != null){
+                try {
+                    //récupération du JSON sous format de string
+                    String tagsInfosString = mVisionService.getTagsInfos("zoom");
+
+                    //reconstruction de l'objet JSON
+                    if(tagsInfosString != null){
+                        JSONObject tagsInfosObj = new JSONObject(tagsInfosString);
+
+                        //récupération des informations de tags
+                        int numberOfTags = (int) tagsInfosObj.get("numberOfTags");
+                        JSONArray arrayTags  = (JSONArray) tagsInfosObj.get("tags");
+
+                        //affichage du nombre de tags détectés
+                        appendColoredText(messageViewZoom, "\n\nNumber of detected Markers : "+numberOfTags , Color.RED);
+
+                        //affichage des valeurs lues sur chaque tag
+                        for (int k=0; k<numberOfTags; k++) {
+                            messageViewZoom.append("\nRead values in marker " + k + " : " + arrayTags.getJSONObject(k).get("value").toString());
+                        }
+
+                        //scroll automatique
+                        scrollerZoom.post(new Runnable() {
+                            public void run() {
+                                scrollerZoom.smoothScrollTo(0, messageViewZoom.getBottom());
+                            }
+                        });
+
+                        Log.i(TAG,"Objet JSON - tagsInfos (Zoom) : "+tagsInfosString);
+                    }
+
+                } catch (Exception e) {
+                    Log.e(TAG,"Erreur pendant l'appel de la fonction getTagsInfos(\"zoom\") du service Vision : "+e);
+                }
+            }
+            else {
+                Log.e(TAG,"mVisionService is null");
+            }
+        }
+    };
 
     /**
      *  Receiver de notification de stream grand-angle : nouvelle frame grand-angle écrite sur la mémoire partagée.
@@ -162,96 +375,15 @@ public class MainActivity extends Activity {
     };
 
     /**
-     * Vérification des permissions puis lancement des traitements
+     *  les Boutons :
      */
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        if (checkSelfPermission(REQUESTED_PERMISSIONS[0], PERMISSION_REQ_ID) &&
-                checkSelfPermission(REQUESTED_PERMISSIONS[1], PERMISSION_REQ_ID)
-        ){
-            start();
-        }
-    }
-
-    /**
-     * La fonction start() permet de :
-     *   - initialiser les views
-     *   - lancer la connexion au service externe VisionService
-     *   - initialiser les objets de mémoire partagée de VisionService
-     */
-    private void start(){
-
-        /*
-         * Initialisations
-         */
-        arrayInteger = (TextView) findViewById(R.id.arrayInteger);
-        arrayString = (TextView) findViewById(R.id.arrayString);
-        imageViewGetImageGrandAngle = (ImageView) findViewById(R.id.imageViewGetImageGrandAngle);
-        imageViewGetImageZoom = (ImageView) findViewById(R.id.imageViewGetImageZoom);
-        imageViewGetObjet_sharedMemory = (ImageView) findViewById(R.id.imageViewGetObjet_sharedMemory);
-        imageViewGetObjet_storage = (ImageView) findViewById(R.id.imageViewGetObjet_storage);
-        imageViewGetStreamGrandAngle = (ImageView) findViewById(R.id.imageViewGetStreamGrandAngle);
-        imageViewGetStreamZoom = (ImageView) findViewById(R.id.imageViewGetStreamZoom);
-        errorTextGetImageGrandAngle = (TextView) findViewById(R.id.errorTextGetImageGrandAngle);
-        errorTextGetImageZoom = (TextView) findViewById(R.id.errorTextGetImageZoom);
-        errorTextGetObjet = (TextView) findViewById(R.id.errorTextGetObjet);
-        errorTextGetStreamGrandAngle = (TextView) findViewById(R.id.errorTextGetStreamGrandAngle);
-        errorTextGetStreamZoom = (TextView) findViewById(R.id.errorTextGetStreamZoom);
-        progressBar_getImageGrandAngle = (ProgressBar) findViewById(R.id.progressBar_getImageGrandAngle);
-        progressBar_getImageZoom = (ProgressBar) findViewById(R.id.progressBar_getImageZoom);
-        progressBar_getObjet = (ProgressBar) findViewById(R.id.progressBar_getObjet);
-
-        /*
-         *  Connexion au service externe VisionService
-         */
-        Intent intent = new Intent();
-        intent.setAction("services.visionService");
-        intent.setPackage("com.bfr.main.visionservice");
-        bindService(intent, mConnectionVisionService, Context.BIND_AUTO_CREATE);
-
-        /*
-         *   Récupération des objets de mémoire partagée de VisionService
-         */
-        new Thread(new Runnable() {
-            public void run(){
-                String visionServiceAppId = "com.bfr.main.visionservice";
-
-                String regionName_stream_frames_grandAngle = getString(R.string.name_region_shared_memory_stream_frames_grand_angle);
-                remoteMemoryOfStreamFramesGrandAngle = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_stream_frames_grandAngle);
-
-                String regionName_stream_frames_zoom = getString(R.string.name_region_shared_memory_stream_frames_zoom);
-                remoteMemoryOfStreamFramesZoom = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_stream_frames_zoom);
-
-                String regionName_cv_resulting_frame = getString(R.string.name_region_shared_memory_cv_resulting_frame);
-                remoteMemoryOfCvResultingFrame = RemoteMemoryAdapter.getDefaultAdapter().getSharedMemory(MainActivity.this, visionServiceAppId, regionName_cv_resulting_frame);
-            }
-        }).start();
-
-    }
-
-    /**
-     * Déconnexion du service externe VisionService et désinscription du broadcastReceiver
-     */
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        try{
-            if (mConnectionVisionService != null) {
-                unbindService(mConnectionVisionService);
-            }
-            unregisterReceiver(receiverNewFrameGrandAngle);
-            unregisterReceiver(receiverNewFrameZoom);
-        }
-        catch (Exception ignored){}
-    }
 
     /**
      * La fonction BtnStartStreamGrandAngle() est executée suite au clic sur le bouton 'startStream' de la rubrique Grand Angle.
      * Elle fait appel à la méthode [startFrameStream("grand-angle")] du service externe pour que le service lance
      * l'écriture des byte[] des frames grand-angle sur la mémoire partagée.
      * Elle permet aussi de s'enregistrer au broadcast qui notifie la présence d'une nouvelle frame grand-angle
+     * et au broadcast qui notifie la détection de tags grand-angle
      */
     public void BtnStartStreamGrandAngle(final View view) {
 
@@ -262,9 +394,10 @@ public class MainActivity extends Activity {
         errorTextGetStreamGrandAngle.setText("");
 
         /*
-         * Enregistrement au broadcast qui notifie la présence d'une nouvelle frame grand-angle
+         * Enregistrement au broadcast qui notifie la présence d'une nouvelle frame grand-angle et au broadcast qui notifie la détection de tags grand-angle
          */
         registerReceiver(receiverNewFrameGrandAngle, new IntentFilter("NEW_FRAME_OPENCV_IS_WRITTEN_GRAND_ANGLE"));
+        registerReceiver(receiverTagDetectedGrandAngle, new IntentFilter("TAG_DETECTED_GRAND_ANGLE"));
 
         /*
          * Appel de la méthode du service externe [startFrameStream("grand-angle")] pour que le service lance
@@ -284,12 +417,12 @@ public class MainActivity extends Activity {
         }
     }
 
-
     /**
      * La fonction BtnStartStreamZoom() est executée suite au clic sur le bouton 'startStream' de la rubrique Zoom.
      * Elle fait appel à la méthode [startFrameStream("zoom")] du service externe pour que le service lance
      * l'écriture des byte[] des frames zoom sur la mémoire partagée.
      * Elle permet aussi de s'enregistrer au broadcast qui notifie la présence d'une nouvelle frame zoom
+     * et au broadcast qui notifie la détection de tags zoom
      */
     public void BtnStartStreamZoom(final View view) {
 
@@ -300,9 +433,10 @@ public class MainActivity extends Activity {
         errorTextGetStreamZoom.setText("");
 
         /*
-         * Enregistrement au broadcast qui notifie la présence d'une nouvelle frame zoom
+         * Enregistrement au broadcast qui notifie la présence d'une nouvelle frame zoom et au broadcast qui notifie la détection de tags zoom
          */
         registerReceiver(receiverNewFrameZoom, new IntentFilter("NEW_FRAME_OPENCV_IS_WRITTEN_ZOOM"));
+        registerReceiver(receiverTagDetectedZoom, new IntentFilter("TAG_DETECTED_ZOOM"));
 
         /*
          * Appel de la méthode du service externe [startFrameStream("zoom")] pour que le service lance
@@ -322,21 +456,21 @@ public class MainActivity extends Activity {
         }
     }
 
-
-
     /**
      * La fonction BtnStopStreamGrandAngle() est executée suite au clic sur le bouton 'stopStream' de la rubrique Grand Angle.
      * Elle fait appel à la méthode [stopFrameStream("grand-angle")] du service externe pour que le service arrête
      * l'écriture des byte[] des frames grand-angle sur la mémoire partagée.
      * Elle permet aussi de se désinscrire du broadcast qui notifie la présence d'une nouvelle frame grand-angle
+     * et du broadcast qui notifie la détection de tags grand-angle
      */
     public void BtnStopStreamGrandAngle(View view) {
 
         /*
-         * Désinscription du broadcastReceiver
+         * Désinscription des broadcastReceiver
          */
         try{
             unregisterReceiver(receiverNewFrameGrandAngle);
+            unregisterReceiver(receiverTagDetectedGrandAngle);
         }
         catch (Exception ignored){}
 
@@ -364,20 +498,21 @@ public class MainActivity extends Activity {
         }
     }
 
-
     /**
      * La fonction BtnStopStreamZoom() est executée suite au clic sur le bouton 'stopStream' de la rubrique Zoom.
      * Elle fait appel à la méthode [stopFrameStream("zoom")] du service externe pour que le service arrête
      * l'écriture des byte[] des frames zoom sur la mémoire partagée.
      * Elle permet aussi de se désinscrire du broadcast qui notifie la présence d'une nouvelle frame zoom
+     * et du broadcast qui notifie la détection de tags zoom
      */
     public void BtnStopStreamZoom(View view) {
 
         /*
-         * Désinscription du broadcastReceiver
+         * Désinscription des broadcastReceiver
          */
         try{
             unregisterReceiver(receiverNewFrameZoom);
+            unregisterReceiver(receiverTagDetectedZoom);
         }
         catch (Exception ignored){}
 
@@ -404,7 +539,6 @@ public class MainActivity extends Activity {
             errorTextGetStreamZoom.setText("non connecté au service Vision");
         }
     }
-
 
     /**
      * La fonction BtnGetImageGrandAngle() est executée suite au clic sur le bouton 'getImage' de la rubrique Grand Angle.
@@ -488,7 +622,6 @@ public class MainActivity extends Activity {
             errorTextGetImageGrandAngle.setText("non connecté au service Vision");
         }
     }
-
 
     /**
      * La fonction BtnGetImageZoom() est executée suite au clic sur le bouton 'getImage' de la rubrique Zoom.
@@ -682,6 +815,24 @@ public class MainActivity extends Activity {
         }
     }
 
+    /**
+     *  Utils :
+     */
+
+    /**
+     * la fonction appendColoredText() permet d'ajouter du texte coloré à un textView
+     * @param tv : le textView
+     * @param text : le texte coloré à ajouter
+     * @param color : la couleur choisie
+     */
+    private void appendColoredText(TextView tv, String text, int color) {
+        int start = tv.getText().length();
+        tv.append(text);
+        int end = tv.getText().length();
+
+        Spannable spannableText = (Spannable) tv.getText();
+        spannableText.setSpan(new ForegroundColorSpan(color), start, end, 0);
+    }
 
     /**
      * Méthodes de gestion de permissions

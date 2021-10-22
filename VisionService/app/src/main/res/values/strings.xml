@@ -1,6 +1,7 @@
 <resources>
 
     <string name="app_name">VisionService</string>
+    <string name="robot_version">4.2</string>
 
     <string name="path_to_storage">/storage/emulated/0/</string> <!--  Chemin vers le dossier de stockage locale  -->
     <string name="image_bytes_directory">ImageBytesFiles</string> <!--  Nom du dossier où stocker les fichiers de byte[] des images  -->

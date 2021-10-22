@@ -4,7 +4,6 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
@@ -17,9 +16,14 @@ import com.bfr.main.visionservice.application.VisionServiceApplication;
 import com.bfr.main.visionservice.models.ObjectExample;
 import com.bfr.main.visionservice.utils.Utils;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.opencv.core.Mat;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  *  VisionService est le service objet de la demande VISION SERVICE.
@@ -27,6 +31,7 @@ import java.util.Arrays;
  *      - Démarrer / Arrêter le streaming des images capturées depuis la caméra grand angle ou Zoom de Buddy (via OpenCV).
  *      - Récupérer un objet Parcelable qui va contenir le résultat d'algorithmes de CV.
  *      - Capturer une image et récupérer le chemin vers le fichier contenant son byte[].
+ *      - Récupérer les informations des tags détectés depuis la caméra Grand-Angle ou Zoom.
  *
  *  Les autres applications peuvent se connecter à ce service par le bias d'AIDL pour appeler ces fonctions.
  */
@@ -224,6 +229,78 @@ public class VisionService extends Service {
 
         }
 
+        /**
+         * La fonction getTagsInfos() permet de récupérer les informations des tags détectés depuis
+         * la caméra Grand-Angle ou Zoom.
+         * @param camera : Camera grand angle ["grand-angle"] ou Zoom ["zoom"]
+         * @return : Json sous format de String contenant les informations de tags.
+         * @throws RemoteException
+         */
+        @Override
+        public String getTagsInfos(String camera) throws RemoteException {
+
+            List<Mat> arucoCorners;
+            Mat arucoIds;
+
+            /*
+             * Récupération des informations arucoCorners et arucoIds pour la construction du JSON
+             */
+            if(camera.equals("grand-angle") && application.getArucoCornersGrandAngle().size()>0) {
+                arucoCorners = application.getArucoCornersGrandAngle();
+                arucoIds = application.getArucoIdsGrandAngle();
+            }
+            else if(camera.equals("zoom") && application.getArucoCornersZoom().size()>0) {
+                arucoCorners = application.getArucoCornersZoom();
+                arucoIds = application.getArucoIdsZoom();
+            }
+            else return null;
+
+            /*
+             * Construction du JSON contenant les informations de tags :
+             * Il est de la forme suivante :
+             *  _____________________________________
+             *  |   {                               |
+             *  |       "numberOfTags" : ... ,      | ----> Nombre de tags détectés [=arucoCorners.size()]
+             *  |       "tags":                     | ----> Array contenant les informations sur les tags détectés
+             *  |           [                       |
+             *  |               {                   |
+             *  |                   "id" : ... ,    | ----> identifiant du premier tag détecté [= k = 0]
+             *  |                   "value" : ...   | ----> valeur lue sur le tag
+             *  |               },                  |
+             *  |               {                   |
+             *  |                   "id" : ... ,    | ----> identifiant du deuxième tag détecté
+             *  |                   "value" : ...   | ----> valeur lue sur le tag
+             *  |               },                  |
+             *  |               ....                |        ...
+             *  |           ]                       |
+             *  |   }                               |
+             *  |___________________________________|
+             *
+             */
+            try {
+                JSONObject tagsInfos = new JSONObject();
+                JSONArray arrayTags = new JSONArray();
+
+                tagsInfos.put("numberOfTags",arucoCorners.size());
+
+                for (int k=0; k<arucoCorners.size(); k++){
+                    JSONObject tag = new JSONObject();
+                    tag.put("id",k);
+                    tag.put("value",arucoIds.get(k,0)[0]);
+                    arrayTags.put(tag);
+                }
+
+                tagsInfos.put("tags", arrayTags);
+
+                Log.i(TAG, "Objet JSON - tagsInfos : "+tagsInfos.toString());
+
+                return tagsInfos.toString();
+
+            } catch (Exception e) {
+                Log.e(TAG, "Erreur pendant la création de l'objet JSON [tagsInfos] : "+e);
+                return null;
+            }
+        }
     };
 
 

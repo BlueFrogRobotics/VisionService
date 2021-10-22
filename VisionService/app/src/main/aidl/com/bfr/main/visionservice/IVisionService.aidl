@@ -9,4 +9,5 @@ interface IVisionService {
     void stopFrameStream(String camera);
     ObjectExample getObjectExample();
     String getImageByteFilePath(String camera);
+    String getTagsInfos(String camera);
 }

@@ -6,8 +6,8 @@ android {
 
     defaultConfig {
         applicationId "com.bfr.main.visionservice"
-        minSdkVersion 26
-        targetSdkVersion 30
+        minSdkVersion 28
+        targetSdkVersion 28
         versionCode 1
         versionName "1.0"
 
@@ -23,17 +23,24 @@ android {
 }
 
 dependencies {
-    implementation fileTree(dir: "libs", include: ["*.jar"])
+    implementation fileTree(dir: 'libs', include: ['*.aar', '*.jar'], exclude: [])
     //noinspection GradleCompatible
     implementation 'com.android.support:appcompat-v7:27.0.0'
     //noinspection GradleCompatible
     implementation 'com.android.support:support-v4:27.0.0'
-    implementation project(path: ':OpenCVLib430')
     implementation 'com.android.support.constraint:constraint-layout:2.0.4'
+    implementation project(path: ':opencv453')
     testImplementation 'junit:junit:4.12'
     //noinspection GradleCompatible
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
     compileOnly 'com.newtronlabs.sharedmemory:sharedmemory:4.0.0'
+
+    // tflite
+    implementation('org.tensorflow:tensorflow-lite:0.0.0-nightly') { changing = true }
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.3.0'
+
+    // added MLKit dependencies for face detector
+    implementation 'com.google.mlkit:face-detection:16.0.0'
 
 }

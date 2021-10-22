@@ -43,6 +43,12 @@ public class VisionServiceApplication extends Application {
     private boolean isFrameZoomCaptured; // Indique si l'image Zoom est prise ou pas encore
     private Mat frameZoom; // L'image Zoom capturée sous format de Mat
 
+    private List<Mat> arucoCornersGrandAngle;
+    private Mat arucoIdsGrandAngle;
+
+    private List<Mat> arucoCornersZoom;
+    private Mat arucoIdsZoom;
+
 
     /**
      * Getters and Setters
@@ -104,6 +110,37 @@ public class VisionServiceApplication extends Application {
         this.frameZoom = frameZoom;
     }
 
+    public List<Mat> getArucoCornersGrandAngle() {
+        return arucoCornersGrandAngle;
+    }
+
+    public void setArucoCornersGrandAngle(List<Mat> arucoCornersGrandAngle) {
+        this.arucoCornersGrandAngle = arucoCornersGrandAngle;
+    }
+
+    public Mat getArucoIdsGrandAngle() {
+        return arucoIdsGrandAngle;
+    }
+
+    public void setArucoIdsGrandAngle(Mat arucoIdsGrandAngle) {
+        this.arucoIdsGrandAngle = arucoIdsGrandAngle;
+    }
+
+    public List<Mat> getArucoCornersZoom() {
+        return arucoCornersZoom;
+    }
+
+    public void setArucoCornersZoom(List<Mat> arucoCornersZoom) {
+        this.arucoCornersZoom = arucoCornersZoom;
+    }
+
+    public Mat getArucoIdsZoom() {
+        return arucoIdsZoom;
+    }
+
+    public void setArucoIdsZoom(Mat arucoIdsZoom) {
+        this.arucoIdsZoom = arucoIdsZoom;
+    }
 
 
     /**

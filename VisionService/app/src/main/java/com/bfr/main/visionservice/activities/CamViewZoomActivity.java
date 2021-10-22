@@ -16,16 +16,23 @@ import org.opencv.android.CameraActivity;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.aruco.Aruco;
+import org.opencv.aruco.DetectorParameters;
+import org.opencv.aruco.Dictionary;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 
 /**
  * La classe CamViewZoomActivity représente l'activité de camera "Zoom" fournie par openCV via CameraActivity.
- * Nous utilisons cette activité pour récupérer la frame openCV "Zoom"
+ * Nous utilisons cette activité pour récupérer la frame openCV "Zoom" + infos des tags détectés
  * Cette activité se lance de façon transparente sur les autres applications
  * (n'est pas visible + absence de focus pour ne pas bloquer les touches sur les autres applications)
  */
@@ -47,7 +54,9 @@ public class CamViewZoomActivity extends CameraActivity implements CameraBridgeV
                 case LoaderCallbackInterface.SUCCESS: {
                     Log.i(TAG, "OpenCV loaded successfully!");
                     //Choix de caméra Zoom puis activation du preview
-                    mOpenCvCameraViewZoom.setCameraIndex(1);
+                    String versionRobot = getString(R.string.robot_version);
+                    if(versionRobot.equals("4.2")) mOpenCvCameraViewZoom.setCameraIndex(0); //pour le robot 4.2 la caméra zoom correspond au 0
+                    else mOpenCvCameraViewZoom.setCameraIndex(1);
                     mOpenCvCameraViewZoom.enableView();
                 }
                 break;
@@ -129,6 +138,61 @@ public class CamViewZoomActivity extends CameraActivity implements CameraBridgeV
         Mat frameZoom = inputFrame.rgba();
 
         // dos stuff with the frame
+
+
+        /*
+         * Partie : Détection de tag
+         */
+
+        application.setArucoIdsZoom(new Mat());
+        application.setArucoCornersZoom(new ArrayList<Mat>());
+
+        //convert
+        Imgproc.cvtColor(frameZoom, frameZoom, Imgproc.COLOR_RGBA2RGB);
+
+        // Definition of dictionary and params
+        Dictionary arucoDict = Aruco.getPredefinedDictionary(Aruco.DICT_APRILTAG_36h11);
+        DetectorParameters arucoParams = DetectorParameters.create();
+
+        // Detect Marker
+        Aruco.detectMarkers(frameZoom, arucoDict, application.getArucoCornersZoom(), application.getArucoIdsZoom(), arucoParams);
+
+        // if marker detected
+        if (application.getArucoCornersZoom().size()>0)
+        {
+            Log.i("aruco", "Number of detected Markers : "+ application.getArucoCornersZoom().size() ) ;
+
+            // fora each detected marker
+            for (int k=0; k<application.getArucoCornersZoom().size(); k++)
+            {
+                Log.i("aruco", "Read values in marker " + k + " : "+ application.getArucoIdsZoom().get(k,0)[0] ) ;
+                // coordinates of four corners
+                int x1 = (int) application.getArucoCornersZoom().get(k).get(0,0)[0];
+                int y1 = (int) application.getArucoCornersZoom().get(k).get(0,0)[1];
+                int x2 = (int) application.getArucoCornersZoom().get(k).get(0,1)[0];
+                int y2 = (int) application.getArucoCornersZoom().get(k).get(0,1)[1];
+                int x3 = (int) application.getArucoCornersZoom().get(k).get(0,2)[0];
+                int y3 = (int) application.getArucoCornersZoom().get(k).get(0,2)[1];
+                int x4 = (int) application.getArucoCornersZoom().get(k).get(0,3)[0];
+                int y4 = (int) application.getArucoCornersZoom().get(k).get(0,3)[1];
+                // draw corners
+                Imgproc.circle(frameZoom, new Point(x1, y1),  1, new Scalar(0,255,0)  ,5);
+                Imgproc.circle(frameZoom, new Point(x2, y2),  1, new Scalar(255,0,0)  ,5);
+                Imgproc.circle(frameZoom, new Point(x3, y3),  1, new Scalar(0,0,255)  ,5);
+                Imgproc.circle(frameZoom, new Point(x4, y4),  1, new Scalar(125,0,125)  ,5);
+
+            } // next marker
+
+            // Envoi du broadcast pour notifier les autres applications de la détection de tags
+            Intent intent_tag_detected = new Intent("TAG_DETECTED_ZOOM");
+            sendBroadcast(intent_tag_detected);
+
+        } // end if marker detected
+
+
+        /*
+         * Partie : Enregistrement de la frame + streaming
+         */
 
         //Enregistrer la frame Zoom sur la classe Application
         application.setFrameZoom(frameZoom);
