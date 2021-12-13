@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -11,6 +12,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.bfr.main.visionservice.R;
+import com.bfr.main.visionservice.application.VisionServiceApplication;
 
 /**
  * MainActivity est l'activité principale du projet, elle permet de gérer les permissions nécessaires pour le fonctionnement du service par la suite.
@@ -25,11 +27,29 @@ public class MainActivity extends Activity {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.CAMERA,
     };
+    private VisionServiceApplication application;
+    private View decorView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        //Récupération du contexte d'Application
+        application = (VisionServiceApplication) getApplicationContext();
+
+        //cacher les barres systemUI
+        application.hideSystemUI(this);
+        decorView=getWindow().getDecorView();
+        decorView.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
+            @Override
+            public void onSystemUiVisibilityChange(int visibility) {
+                if(visibility==0){
+                    decorView.setSystemUiVisibility(application.hideSystemUI(MainActivity.this));
+                }
+            }
+        });
+
         if (checkSelfPermission(REQUESTED_PERMISSIONS[0], PERMISSION_REQ_ID) &&
                 checkSelfPermission(REQUESTED_PERMISSIONS[1], PERMISSION_REQ_ID) &&
                 checkSelfPermission(REQUESTED_PERMISSIONS[2], PERMISSION_REQ_ID)
@@ -74,6 +94,18 @@ public class MainActivity extends Activity {
             return;
         }
         finish();
+    }
+
+    /**
+     *  Cacher les barres systemUI
+     */
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            application.hideSystemUI(this);
+        }
     }
 
 }

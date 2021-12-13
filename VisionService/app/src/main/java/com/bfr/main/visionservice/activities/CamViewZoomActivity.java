@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
 
 import com.bfr.main.visionservice.R;
@@ -43,6 +44,7 @@ public class CamViewZoomActivity extends CameraActivity implements CameraBridgeV
     private CameraBridgeViewBase mOpenCvCameraViewZoom;
     private VisionServiceApplication application;
     private boolean streamZoom = true; // Indique s'il faut lancer le streaming de frames zoom [Ecriture sur mémoire partagée] ou non
+    private View decorView;
 
     /**
      * Callback d'initialisation openCV
@@ -86,6 +88,18 @@ public class CamViewZoomActivity extends CameraActivity implements CameraBridgeV
 
         //Récupération du contexte d'Application
         application = (VisionServiceApplication) getApplicationContext();
+
+        //cacher les barres systemUI
+        application.hideSystemUI(this);
+        decorView=getWindow().getDecorView();
+        decorView.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
+            @Override
+            public void onSystemUiVisibilityChange(int visibility) {
+                if(visibility==0){
+                    decorView.setSystemUiVisibility(application.hideSystemUI(CamViewZoomActivity.this));
+                }
+            }
+        });
 
         //Enregistrement de l'Observer (pour recevoir les notifications)
         application.registerObserver(this);
@@ -255,6 +269,19 @@ public class CamViewZoomActivity extends CameraActivity implements CameraBridgeV
                 finish();
             }
 
+        }
+    }
+
+
+    /**
+     *  Cacher les barres systemUI
+     */
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            application.hideSystemUI(this);
         }
     }
 }
