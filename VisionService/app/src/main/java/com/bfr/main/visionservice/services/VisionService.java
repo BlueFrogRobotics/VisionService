@@ -83,8 +83,14 @@ public class VisionService extends Service {
          */
         @Override
         public void stopFrameStream(String camera) throws RemoteException {
-            if(camera.equals("grand-angle")) application.notifyObservers("stopStreamGrandAngle");
-            else if(camera.equals("zoom")) application.notifyObservers("stopStreamZoom");
+            if(camera.equals("grand-angle")) {
+                application.notifyObservers("stopStreamGrandAngle");
+                application.notifyObservers("finishCamGrandAngle");
+            }
+            else if(camera.equals("zoom")) {
+                application.notifyObservers("stopStreamZoom");
+                application.notifyObservers("finishCamZoom");
+            }
         }
 
 
