@@ -74,6 +74,7 @@ public class MainActivity extends Activity {
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.READ_EXTERNAL_STORAGE,
     };
+    private View decorView;
 
     //Streaming (Flux d'images) :
 
@@ -156,6 +157,18 @@ public class MainActivity extends Activity {
      *   - initialiser les objets de mémoire partagée de VisionService
      */
     private void start(){
+
+        //cacher les barres systemUI
+        hideSystemUI(this);
+        decorView=getWindow().getDecorView();
+        decorView.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
+            @Override
+            public void onSystemUiVisibilityChange(int visibility) {
+                if(visibility==0){
+                    decorView.setSystemUiVisibility(hideSystemUI(MainActivity.this));
+                }
+            }
+        });
 
         /*
          * Initialisations
@@ -871,6 +884,39 @@ public class MainActivity extends Activity {
         }else {
             start();
         }
+    }
+
+
+    /**
+     * Cacher les barres systemUI
+     */
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            hideSystemUI(this);
+        }
+    }
+
+    /**
+     * Cette fonction permet de cacher les barres du système
+     */
+    public int hideSystemUI(Activity myActivityReference) {
+        View decorView = myActivityReference.getWindow().getDecorView();
+        decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN);
+        return (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
 }
