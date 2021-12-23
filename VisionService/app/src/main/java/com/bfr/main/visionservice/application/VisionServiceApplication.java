@@ -1,7 +1,9 @@
 package com.bfr.main.visionservice.application;
 
+import android.app.Activity;
 import android.app.Application;
 import android.util.Log;
+import android.view.View;
 
 import com.bfr.main.visionservice.R;
 import com.bfr.main.visionservice.observer.IDBObserver;
@@ -233,6 +235,26 @@ public class VisionServiceApplication extends Application {
      */
     public void removeObserver(IDBObserver observer) {
         observers.remove(observer);
+    }
+
+    /**
+     * Cette fonction permet de cacher les barres du système
+     */
+    public int hideSystemUI(Activity myActivityReference) {
+        View decorView = myActivityReference.getWindow().getDecorView();
+        decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN);
+        return (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
 }
