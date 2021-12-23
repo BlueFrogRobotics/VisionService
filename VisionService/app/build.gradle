@@ -34,7 +34,7 @@ dependencies {
     //noinspection GradleCompatible
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-    compileOnly 'com.newtronlabs.sharedmemory:sharedmemory:4.0.0'
+    compileOnly 'com.newtronlabs.sharedmemory:sharedmemory:5.0.0-alpha01'
 
     // tflite
     implementation('org.tensorflow:tensorflow-lite:0.0.0-nightly') { changing = true }
